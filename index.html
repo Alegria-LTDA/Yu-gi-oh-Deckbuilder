@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>YGO Deck Builder</title>
+  <link rel="stylesheet" href="assets/css/styles.css" />
+    <!-- JSZip + FileSaver for zipping/downloading images -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+  </head>
+  <body>
+    <header>
+      <div class="header-left"><h1>YGO Deck Builder</h1></div>
+      <div class="header-center">
+        <!-- Tenta carregar PNG (se você enviar assets/img/ygologo.png). Caso contrário usa o SVG placeholder -->
+        <picture class="logo-picture">
+          <source srcset="assets/img/ygologo.png" type="image/png">
+          <img id="logo" src="assets/img/ygologo.svg" alt="Yu-Gi-Oh! logo" />
+        </picture>
+      </div>
+      <div class="header-right controls">
+        <input id="searchInput" type="search" placeholder="Buscar cartas (nome ou parte do nome)" />
+        <select id="langSelect">
+          <option value="Portuguese">Português</option>
+          <option value="English">English</option>
+        </select>
+        <button id="searchBtn">Buscar</button>
+      </div>
+    </header>
+
+    <main>
+      <section id="results">
+        <h2>Resultados</h2>
+        <div id="cardsList" class="cards"></div>
+      </section>
+
+      <aside id="deckSidebar">
+        <h2>Deck</h2>
+        <div class="deck-mode">
+          <button id="deckModeMain" class="mode active">Deck Principal (<span id="mainCount">0</span>/60)</button>
+          <button id="deckModeExtra" class="mode">Deck Adicional (<span id="extraCount">0</span>/15)</button>
+        </div>
+        <div id="deckSummary" class="deck-summary">
+          <div>Monstros: <span id="countMonster">0</span></div>
+          <div>Magias: <span id="countSpell">0</span></div>
+          <div>Armadilhas: <span id="countTrap">0</span></div>
+        </div>
+        <div id="deckList" class="deck-list"></div>
+        <div class="deck-actions">
+          <button id="exportTxt">Exportar .txt</button>
+          <button id="exportJson">Exportar .json</button>
+          <button id="downloadImages">Baixar imagens (.zip)</button>
+          <button id="clearDeck">Limpar deck atual</button>
+        </div>
+      </aside>
+    </main>
+
+    <!-- Modal de detalhes -->
+    <div id="cardModal" class="modal hidden">
+      <div class="modal-content">
+        <button id="closeModal" class="close">✕</button>
+        <div id="modalBody"></div>
+      </div>
+    </div>
+
+    <footer>
+      <small>Usa a API do YGOPRODeck (https://db.ygoprodeck.com)</small>
+    </footer>
+
+  <script src="assets/js/app.js"></script>
+  </body>
+</html>

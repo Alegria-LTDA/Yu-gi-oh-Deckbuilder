@@ -140,7 +140,7 @@ main {
 }
 
 #deckSidebar {
-  width: 330px;
+  width: 350px;
   background: var(--card);
   padding: 12px;
   border-radius: 8px;

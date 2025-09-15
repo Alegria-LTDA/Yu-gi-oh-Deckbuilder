@@ -11,24 +11,32 @@ const state = { results: [], deckMain: [], deckExtra: [], mode: 'main' };
 // Persistence keys
 const STORAGE_KEY = 'ygodb_decks_v1';
 
-function loadState(){
-  try{
+// Helper: normalize and detect Extra Deck types
+function isExtraDeckCard(card) {
+  const t = (card && (card.type || card.card_type || card.race || '')) + '';
+  // normalize string: lowercase and remove diacritics
+  const s = t.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
+  const extras = ['link', 'fusion', 'fusao', 'fusao', 'synchro', 'sincro', 'sincron', 'xyz', 'xyz monster', 'link monster', 'fusion monster', 'synchro monster'];
+  return extras.some(k => s.includes(k));
+}
+
+function loadState() {
+  try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
     const obj = JSON.parse(raw);
     state.deckMain = obj.deckMain || [];
     state.deckExtra = obj.deckExtra || [];
-  }catch(e){ console.warn('failed to load state', e); }
+  } catch (e) { console.warn('failed to load state', e); }
 }
 
-function saveState(){
-  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify({ deckMain: state.deckMain, deckExtra: state.deckExtra })); }
-  catch(e){ console.warn('failed to save state', e); }
+function saveState() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ deckMain: state.deckMain, deckExtra: state.deckExtra })); }
+  catch (e) { console.warn('failed to save state', e); }
 }
 
 // Elements
 const searchInput = $('#searchInput');
-const langSelect = $('#langSelect');
 const searchBtn = $('#searchBtn');
 const cardsList = $('#cardsList');
 const cardModal = $('#cardModal');
@@ -55,22 +63,22 @@ clearDeck.addEventListener('click', () => { clearCurrentDeck(); renderDeck(); })
 deckModeMain.addEventListener('click', () => { setMode('main'); });
 deckModeExtra.addEventListener('click', () => { setMode('extra'); });
 
-function setMode(m){
+function setMode(m) {
   state.mode = m;
   deckModeMain.classList.toggle('active', m === 'main');
   deckModeExtra.classList.toggle('active', m === 'extra');
   renderDeck();
 }
 
-function clearCurrentDeck(){
+function clearCurrentDeck() {
   if (state.mode === 'main') state.deckMain = [];
   else state.deckExtra = [];
 }
 
-async function doSearch(){
+async function doSearch() {
   const q = searchInput.value.trim();
   if (!q) return alert('Digite um termo para buscar');
-  const lang = langSelect.value === 'Portuguese' ? 'pt' : 'en';
+  let lang = 'pt';
   // Try several URL variants in a robust order: fuzzy without language, with language, exact name, then language-name
   const encoded = encodeURIComponent(q);
   const attempts = [
@@ -84,13 +92,13 @@ async function doSearch(){
   searchBtn.disabled = true;
   cardsList.innerHTML = 'Carregando...';
   let found = false;
-  for (const url of attempts){
-    try{
+  for (const url of attempts) {
+    try {
       const res = await fetch(url);
       if (!res.ok) { continue; }
       const data = await res.json();
       // API returns { data: [...] } on success, or { error: '...' }
-      if (data && data.data && Array.isArray(data.data) && data.data.length > 0){
+      if (data && data.data && Array.isArray(data.data) && data.data.length > 0) {
         state.results = data.data;
         found = true;
         break;
@@ -98,12 +106,12 @@ async function doSearch(){
       // if API returned a single object (older endpoints) try to normalize
       if (Array.isArray(data)) { state.results = data; found = true; break; }
       // otherwise keep trying
-    }catch(err){
+    } catch (err) {
       // network or parse error, try next
       console.warn('attempt failed', url, err);
     }
   }
-  if (!found){
+  if (!found) {
     cardsList.innerHTML = '<p>Nenhuma carta encontrada ou erro na API. Veja o console para mais detalhes.</p>';
     state.results = [];
     searchBtn.disabled = false;
@@ -113,15 +121,15 @@ async function doSearch(){
   searchBtn.disabled = false;
 }
 
-function renderResults(){
+function renderResults() {
   cardsList.innerHTML = '';
-  if (!state.results || state.results.length === 0){
+  if (!state.results || state.results.length === 0) {
     cardsList.innerHTML = '<p>Nenhuma carta encontrada.</p>';
     return;
   }
 
   state.results.forEach(card => {
-    const c = create('div','card');
+    const c = create('div', 'card');
     const img = create('img');
     // Prefer small thumbnail when available to avoid heavy downloads in the list
     const imgUrl = (card.card_images && card.card_images[0] && (card.card_images[0].image_url_small || card.card_images[0].image_url)) || card.image_url || '';
@@ -130,17 +138,17 @@ function renderResults(){
     img.alt = card.name;
     c.appendChild(img);
 
-    const info = create('div','info');
+    const info = create('div', 'info');
     const h = create('h3'); h.textContent = card.name;
-    const sub = create('div'); sub.style.fontSize='12px'; sub.style.color='#9aa8b7';
-    sub.textContent = `${card.type || ''} ${card.race ? '— '+card.race : ''}`;
+    const sub = create('div'); sub.style.fontSize = '12px'; sub.style.color = '#9aa8b7';
+    sub.textContent = `${card.type || ''} ${card.race ? '— ' + card.race : ''}`;
     info.appendChild(h); info.appendChild(sub);
     c.appendChild(info);
 
-    const actions = create('div','actions');
-    const btnDetails = create('button'); btnDetails.textContent='Detalhes';
+    const actions = create('div', 'actions');
+    const btnDetails = create('button'); btnDetails.textContent = 'Detalhes';
     btnDetails.addEventListener('click', () => showDetails(card));
-    const btnAdd = create('button'); btnAdd.textContent='Adicionar';
+    const btnAdd = create('button'); btnAdd.textContent = 'Adicionar';
     btnAdd.addEventListener('click', () => { addToDeck(card); });
     actions.appendChild(btnDetails); actions.appendChild(btnAdd);
     c.appendChild(actions);
@@ -149,13 +157,13 @@ function renderResults(){
   });
 }
 
-function showDetails(card){
+function showDetails(card) {
   modalBody.innerHTML = '';
   const title = create('h2'); title.textContent = card.name;
-  const top = create('div'); top.style.display='flex'; top.style.gap='12px';
+  const top = create('div'); top.style.display = 'flex'; top.style.gap = '12px';
   // show a reasonably sized preview in the modal; the download button fetches the original image
   const img = create('img'); img.src = (card.card_images && card.card_images[0] && (card.card_images[0].image_url || card.card_images[0].image_url_small)) || card.image_url || '';
-  img.style.width='220px'; img.style.height='320px'; img.style.objectFit='cover';
+  img.style.width = '220px'; img.style.height = '320px'; img.style.objectFit = 'cover';
   top.appendChild(img);
 
   const meta = create('div');
@@ -172,11 +180,11 @@ function showDetails(card){
   const desc = create('div'); desc.innerHTML = `<h3>Descrição</h3><p>${card.desc || ''}</p>`;
   modalBody.appendChild(desc);
 
-  const imagesSection = create('div'); imagesSection.style.marginTop='12px';
+  const imagesSection = create('div'); imagesSection.style.marginTop = '12px';
   imagesSection.innerHTML = '<h3>Imagens</h3>';
-  const imgsWrap = create('div'); imgsWrap.style.display='flex'; imgsWrap.style.flexWrap='wrap'; imgsWrap.style.gap='8px';
+  const imgsWrap = create('div'); imgsWrap.style.display = 'flex'; imgsWrap.style.flexWrap = 'wrap'; imgsWrap.style.gap = '8px';
   (card.card_images || []).forEach(ci => {
-    const i = create('img'); i.src = ci.image_url; i.style.width='120px'; i.style.height='170px'; i.style.objectFit='cover'; i.style.cursor='pointer';
+    const i = create('img'); i.src = ci.image_url; i.style.width = '120px'; i.style.height = '170px'; i.style.objectFit = 'cover'; i.style.cursor = 'pointer';
     i.addEventListener('click', () => downloadImage(ci.image_url, `${card.name}.jpg`));
     imgsWrap.appendChild(i);
   });
@@ -184,9 +192,9 @@ function showDetails(card){
   modalBody.appendChild(imagesSection);
 
   // Export/Download buttons
-  const actions = create('div'); actions.style.marginTop='12px';
-  const addBtn = create('button'); addBtn.textContent='Adicionar ao deck'; addBtn.addEventListener('click', () => { addToDeck(card); });
-  const dlBtn = create('button'); dlBtn.textContent='Baixar imagem (HD)'; dlBtn.addEventListener('click', () => {
+  const actions = create('div'); actions.style.marginTop = '12px';
+  const addBtn = create('button'); addBtn.textContent = 'Adicionar ao deck'; addBtn.addEventListener('click', () => { addToDeck(card); });
+  const dlBtn = create('button'); dlBtn.textContent = 'Baixar imagem (HD)'; dlBtn.addEventListener('click', () => {
     const url = (card.card_images && card.card_images[0] && card.card_images[0].image_url) || card.image_url;
     if (url) downloadImage(url, `${card.name}.jpg`);
   });
@@ -196,44 +204,63 @@ function showDetails(card){
   cardModal.classList.remove('hidden');
 }
 
-function addToDeck(card){
-  // store entries with qty: try increment existing, else add new
-  const image = (card.card_images && card.card_images[0] && card.card_images[0].image_url) || card.image_url;
-  const target = state.mode === 'main' ? state.deckMain : state.deckExtra;
-  const maxTotal = state.mode === 'main' ? 60 : 15;
+function addToDeck(card) {
+  // decide whether this is an Extra Deck card
+  const extraCard = isExtraDeckCard(card);
+
+  // If user is in extra deck mode but card is NOT an extra type, prevent adding
+  if (state.mode === 'extra' && !extraCard) {
+    return alert('Somente cartas do tipo Link/Fusão/Sincro/XYZ podem ser adicionadas ao Deck Adicional. Mude para o Deck Principal para adicionar esta carta.');
+  }
+
+  // choose target based on card type: extra types always go to extra deck
+  const targetMode = extraCard ? 'extra' : state.mode;
+  const target = targetMode === 'main' ? state.deckMain : state.deckExtra;
+  const maxTotal = targetMode === 'main' ? 60 : 15;
   const maxPerCard = 3;
 
+  // store entries with qty: try increment existing, else add new
+  const image = (card.card_images && card.card_images[0] && card.card_images[0].image_url) || card.image_url;
+
   // compute current total count
-  const currentTotal = target.reduce((s,i) => s + (i.qty || 1), 0);
-  if (currentTotal >= maxTotal) return alert(`Deck ${state.mode==='main'?'Principal':'Adicional'} já atingiu o máximo de ${maxTotal} cartas`);
+  const currentTotal = target.reduce((s, i) => s + (i.qty || 1), 0);
+  if (currentTotal >= maxTotal) return alert(`Deck ${targetMode === 'main' ? 'Principal' : 'Adicional'} já atingiu o máximo de ${maxTotal} cartas`);
 
   const existing = target.find(t => t.id === card.id);
-  if (existing){
+  if (existing) {
     const existingQty = existing.qty || 1;
     if (existingQty >= maxPerCard) return alert('Já existe o máximo de 3 cópias desta carta no deck');
     // check total if incrementing
     if (currentTotal + 1 > maxTotal) return alert('Adicionar esta cópia excederia o limite do deck');
     existing.qty = existingQty + 1;
-  }else{
+  } else {
     target.push({ id: card.id, name: card.name, image, type: card.type || '', race: card.race || '', qty: 1 });
   }
+
   saveState();
   renderDeck();
+
+  // notify user when card auto-added to extra deck
+  if (extraCard && state.mode !== 'extra') {
+    // small notice
+    try { console.info('Carta extra adicionada automaticamente ao Deck Adicional'); }
+    catch (e) { }
+  }
 }
 
-function renderDeck(){
+function renderDeck() {
   deckList.innerHTML = '';
   const current = state.mode === 'main' ? state.deckMain : state.deckExtra;
   mainCountSpan.textContent = state.deckMain.length;
   extraCountSpan.textContent = state.deckExtra.length;
   // update counts (by qty)
-  const totalMain = state.deckMain.reduce((s,i) => s + (i.qty || 1), 0);
-  const totalExtra = state.deckExtra.reduce((s,i) => s + (i.qty || 1), 0);
+  const totalMain = state.deckMain.reduce((s, i) => s + (i.qty || 1), 0);
+  const totalExtra = state.deckExtra.reduce((s, i) => s + (i.qty || 1), 0);
   mainCountSpan.textContent = totalMain;
   extraCountSpan.textContent = totalExtra;
 
   // update deck summary counts (Monster/Spell/Trap)
-  const counts = { monster:0, spell:0, trap:0 };
+  const counts = { monster: 0, spell: 0, trap: 0 };
   const sumSource = state.mode === 'main' ? state.deckMain : state.deckExtra;
   sumSource.forEach(it => {
     const t = (it.type || '').toLowerCase();
@@ -246,50 +273,50 @@ function renderDeck(){
   $('#countSpell').textContent = counts.spell;
   $('#countTrap').textContent = counts.trap;
 
-  if (current.length === 0){ deckList.innerHTML = '<p>Deck vazio</p>'; return }
+  if (current.length === 0) { deckList.innerHTML = '<p>Deck vazio</p>'; return }
   current.forEach((c, idx) => {
-    const el = create('div','deck-item');
+    const el = create('div', 'deck-item');
     const img = create('img'); img.src = c.image || '';
     const span = create('div'); span.textContent = c.name;
-    const qtyControls = create('div','qty-controls');
-    const btnMinus = create('button'); btnMinus.textContent='−'; btnMinus.addEventListener('click', () => { changeQty(idx, -1); });
-    const badge = create('div','qty-badge'); badge.textContent = c.qty || 1;
-    const btnPlus = create('button'); btnPlus.textContent='+'; btnPlus.addEventListener('click', () => { changeQty(idx, +1); });
+    const qtyControls = create('div', 'qty-controls');
+    const btnMinus = create('button'); btnMinus.textContent = '−'; btnMinus.addEventListener('click', () => { changeQty(idx, -1); });
+    const badge = create('div', 'qty-badge'); badge.textContent = c.qty || 1;
+    const btnPlus = create('button'); btnPlus.textContent = '+'; btnPlus.addEventListener('click', () => { changeQty(idx, +1); });
     qtyControls.appendChild(btnMinus); qtyControls.appendChild(badge); qtyControls.appendChild(btnPlus);
-    const remove = create('button'); remove.textContent='Remover'; remove.addEventListener('click', () => { removeFromCurrent(idx); });
+    const remove = create('button'); remove.textContent = 'Remover'; remove.addEventListener('click', () => { removeFromCurrent(idx); });
     el.appendChild(img); el.appendChild(span); el.appendChild(qtyControls); el.appendChild(remove);
     deckList.appendChild(el);
   });
 }
 
-function changeQty(idx, delta){
+function changeQty(idx, delta) {
   const target = state.mode === 'main' ? state.deckMain : state.deckExtra;
   const maxPerCard = 3;
   const maxTotal = state.mode === 'main' ? 60 : 15;
   const item = target[idx];
   if (!item) return;
-  const currentTotal = target.reduce((s,i) => s + (i.qty || 1), 0);
-  if (delta > 0){
+  const currentTotal = target.reduce((s, i) => s + (i.qty || 1), 0);
+  if (delta > 0) {
     if ((item.qty || 1) >= maxPerCard) return alert('Já há 3 cópias desta carta');
     if (currentTotal + 1 > maxTotal) return alert('Adicionar esta cópia excederia o limite do deck');
     item.qty = (item.qty || 1) + 1;
-  }else{
+  } else {
     item.qty = (item.qty || 1) - 1;
-    if (item.qty <= 0){ target.splice(idx,1); }
+    if (item.qty <= 0) { target.splice(idx, 1); }
   }
   saveState();
   renderDeck();
 }
 
-function removeFromCurrent(idx){
-  if (state.mode === 'main') state.deckMain.splice(idx,1);
-  else state.deckExtra.splice(idx,1);
+function removeFromCurrent(idx) {
+  if (state.mode === 'main') state.deckMain.splice(idx, 1);
+  else state.deckExtra.splice(idx, 1);
   saveState();
   renderDeck();
 }
 
-async function downloadImage(url, filename){
-  try{
+async function downloadImage(url, filename) {
+  try {
     const res = await fetch(url);
     const blob = await res.blob();
     // use FileSaver if available
@@ -302,40 +329,40 @@ async function downloadImage(url, filename){
       a.click();
       a.remove();
     }
-  }catch(e){
+  } catch (e) {
     console.error('download failed', e);
     // fallback: open image in a new tab so user can save manually
-    try{ window.open(url, '_blank'); alert('Não foi possível baixar automaticamente. A imagem será aberta em nova aba para que você possa salvar manualmente.'); }
-    catch(err){ alert('Falha ao baixar imagem e ao abrir a imagem em nova aba. Veja o console.'); }
+    try { window.open(url, '_blank'); alert('Não foi possível baixar automaticamente. A imagem será aberta em nova aba para que você possa salvar manualmente.'); }
+    catch (err) { alert('Falha ao baixar imagem e ao abrir a imagem em nova aba. Veja o console.'); }
   }
 }
 
 
 
-function exportDeckTxt(){
+function exportDeckTxt() {
   const current = state.mode === 'main' ? state.deckMain : state.deckExtra;
-  if (current.length===0) return alert('Deck vazio');
+  if (current.length === 0) return alert('Deck vazio');
   const lines = [];
-  current.forEach(c => { const qty = c.qty || 1; for(let i=0;i<qty;i++) lines.push(c.name); });
+  current.forEach(c => { const qty = c.qty || 1; for (let i = 0; i < qty; i++) lines.push(c.name); });
   const filename = state.mode === 'main' ? 'deck_main.txt' : 'deck_extra.txt';
   const blob = new Blob([lines.join('\r\n')], { type: 'text/plain;charset=utf-8' });
   if (window.saveAs) saveAs(blob, filename);
 }
 
-function exportDeckJson(){
+function exportDeckJson() {
   const current = state.mode === 'main' ? state.deckMain : state.deckExtra;
-  if (current.length===0) return alert('Deck vazio');
+  if (current.length === 0) return alert('Deck vazio');
   const filename = state.mode === 'main' ? 'deck_main.json' : 'deck_extra.json';
   const blob = new Blob([JSON.stringify(current, null, 2)], { type: 'application/json' });
   if (window.saveAs) saveAs(blob, filename);
 }
 
-async function downloadDeckImagesZip(){
+async function downloadDeckImagesZip() {
   const current = state.mode === 'main' ? state.deckMain : state.deckExtra;
-  if (current.length===0) return alert('Deck vazio');
+  if (current.length === 0) return alert('Deck vazio');
   // confirm if many images to avoid hammering the API
-  const totalImages = current.reduce((s,i) => s + (i.qty || 1), 0);
-  if (totalImages > 10){
+  const totalImages = current.reduce((s, i) => s + (i.qty || 1), 0);
+  if (totalImages > 10) {
     const ok = confirm(`Você está prestes a baixar ${totalImages} imagens. Isso pode gerar muitas requisições. Deseja continuar?`);
     if (!ok) return;
   }
@@ -348,21 +375,21 @@ async function downloadDeckImagesZip(){
   const concurrency = 3;
   const queue = [];
   current.forEach(c => {
-    for(let i=0;i<(c.qty||1);i++) queue.push(c);
+    for (let i = 0; i < (c.qty || 1); i++) queue.push(c);
   });
 
-  async function worker(){
-    while(queue.length){
+  async function worker() {
+    while (queue.length) {
       const c = queue.shift();
       const url = c.image;
       if (!url) continue;
-      try{
+      try {
         const res = await fetch(url);
         if (!res.ok) throw new Error('fetch failed');
         const blob = await res.blob();
         const ext = url.split('.').pop().split(/\?|#/)[0] || 'jpg';
         folder.file(`${sanitizeFilename(c.name)}.${ext}`, blob);
-      }catch(e){
+      } catch (e) {
         console.warn('failed to fetch image for', c.name, e);
         failed.push(c.name);
       }
@@ -371,16 +398,16 @@ async function downloadDeckImagesZip(){
 
   // start workers
   const workers = [];
-  for(let i=0;i<concurrency;i++) workers.push(worker());
+  for (let i = 0; i < concurrency; i++) workers.push(worker());
   await Promise.all(workers);
 
   const content = await zip.generateAsync({ type: 'blob' });
   const filename = state.mode === 'main' ? 'deck_main_images.zip' : 'deck_extra_images.zip';
   saveAs(content, filename);
-  if (failed && failed.length>0) alert(`Algumas imagens falharam ao baixar: ${failed.length} (ver console)`);
+  if (failed && failed.length > 0) alert(`Algumas imagens falharam ao baixar: ${failed.length} (ver console)`);
 }
 
-function sanitizeFilename(name){ return name.replace(/[\\/:*?"<>|]/g,'_') }
+function sanitizeFilename(name) { return name.replace(/[\\/:*?"<>|]/g, '_') }
 
 // Initial render
 // load persisted decks and render
